@@ -15,6 +15,7 @@
 #include <X11/extensions/Xinerama.h>
 #endif
 #include <X11/Xft/Xft.h>
+#include <X11/Xresource.h>
 
 #include "drw.h"
 #include "util.h"
@@ -27,6 +28,20 @@
 
 /* enums */
 enum { SchemeNorm, SchemeSel, SchemeOut, SchemeLast }; /* color schemes */
+
+/* Xresources preferences */
+enum resource_type {
+	STRING = 0,
+	INTEGER = 1,
+	FLOAT = 2
+};
+
+typedef struct {
+	char *name;
+	enum resource_type type;
+	void *dst;
+} ResourcePref;
+
 
 struct item {
 	char *text;
@@ -558,6 +573,40 @@ readstdin(void)
 	lines = MIN(lines, i);
 }
 
+int
+resource_load(XrmDatabase db, char *name, enum resource_type rtype, void *dst)
+{
+	char **sdst = dst;
+	int *idst = dst;
+	float *fdst = dst;
+
+	char fullname[256];
+	char fullclass[256];
+	char *type;
+	XrmValue ret;
+
+	snprintf(fullname, sizeof(fullname), "%s.%s", "dmenu", name);
+	snprintf(fullclass, sizeof(fullclass), "%s.%s", "Dmenu", name);
+	fullname[sizeof(fullname) - 1] = fullclass[sizeof(fullclass) - 1] = '\0';
+
+	XrmGetResource(db, fullname, fullclass, &type, &ret);
+	if (ret.addr == NULL || strncmp("String", type, 64))
+		return 1;
+
+	switch (rtype) {
+	case STRING:
+		*sdst = ret.addr;
+		break;
+	case INTEGER:
+		*idst = strtoul(ret.addr, NULL, 10);
+		break;
+	case FLOAT:
+		*fdst = strtof(ret.addr, NULL);
+		break;
+	}
+	return 0;
+}
+
 static void
 run(void)
 {
@@ -705,11 +754,47 @@ usage(void)
 	exit(1);
 }
 
+void
+xres_init(void)
+{
+	fprintf(stderr, "xres_init\n");
+	char *resm;
+	XrmDatabase db;
+	ResourcePref *p;
+
+	XrmInitialize();
+	fprintf(stderr, "after xrm initialize\n");
+	resm = XResourceManagerString(drw->dpy);
+	fprintf(stderr, "after xrm resmanstr\n");
+	if (!resm)
+		return;
+
+	if ((db = XrmGetStringDatabase(resm)) == NULL)
+		fprintf(stderr, "dang shits null\n");
+
+	for (p = resources; p < resources + LENGTH(resources); p++)
+		resource_load(db, p->name, p->type, p->dst);
+}
+
 int
 main(int argc, char *argv[])
 {
 	XWindowAttributes wa;
 	int i, fast = 0;
+
+	if (!setlocale(LC_CTYPE, "") || !XSupportsLocale())
+		fputs("warning: no locale support\n", stderr);
+	if (!(dpy = XOpenDisplay(NULL)))
+		die("cannot open display");
+	screen = DefaultScreen(dpy);
+	root = RootWindow(dpy, screen);
+	if (!embed || !(parentwin = strtol(embed, NULL, 0)))
+		parentwin = root;
+	if (!XGetWindowAttributes(dpy, parentwin, &wa))
+		die("could not get embedding window attributes: 0x%lx",
+		    parentwin);
+	drw = drw_create(dpy, screen, root, wa.width, wa.height);
+	xres_init();
 
 	for (i = 1; i < argc; i++)
 		/* these options take no arguments */
@@ -749,18 +834,6 @@ main(int argc, char *argv[])
 		else
 			usage();
 
-	if (!setlocale(LC_CTYPE, "") || !XSupportsLocale())
-		fputs("warning: no locale support\n", stderr);
-	if (!(dpy = XOpenDisplay(NULL)))
-		die("cannot open display");
-	screen = DefaultScreen(dpy);
-	root = RootWindow(dpy, screen);
-	if (!embed || !(parentwin = strtol(embed, NULL, 0)))
-		parentwin = root;
-	if (!XGetWindowAttributes(dpy, parentwin, &wa))
-		die("could not get embedding window attributes: 0x%lx",
-		    parentwin);
-	drw = drw_create(dpy, screen, root, wa.width, wa.height);
 	if (!drw_fontset_create(drw, fonts, LENGTH(fonts)))
 		die("no fonts could be loaded.");
 	lrpad = drw->fonts->h;

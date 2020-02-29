@@ -21,3 +21,15 @@ static unsigned int lines      = 0;
  * for example: " /?\"&[]"
  */
 static const char worddelimiters[] = " ";
+
+/* Xresources preferences to load at startup */
+ResourcePref resources[] = {
+	{ "font",           STRING,  &fonts[0]              },
+	{ "normfgcolor",    STRING,  &colors[SchemeNorm][0] },
+	{ "normbgcolor",    STRING,  &colors[SchemeNorm][1] },
+	{ "selfgcolor",     STRING,  &colors[SchemeSel][0]  },
+	{ "selbgcolor",     STRING,  &colors[SchemeSel][1]  },
+	{ "borderfgcolor",  STRING,  &colors[SchemeOut][0]  },
+	{ "borderbgcolor",  STRING,  &colors[SchemeOut][1]  },
+	{ "topbar",         INTEGER, &topbar                },
+};
