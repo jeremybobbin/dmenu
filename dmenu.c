@@ -764,7 +764,7 @@ xres_init(void)
 
 	XrmInitialize();
 	fprintf(stderr, "after xrm initialize\n");
-	resm = XResourceManagerString(drw->dpy);
+	resm = XResourceManagerString(dpy);
 	fprintf(stderr, "after xrm resmanstr\n");
 	if (!resm)
 		return;
