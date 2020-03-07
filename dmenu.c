@@ -757,20 +757,17 @@ usage(void)
 void
 xres_init(void)
 {
-	fprintf(stderr, "xres_init\n");
 	char *resm;
 	XrmDatabase db;
 	ResourcePref *p;
 
 	XrmInitialize();
-	fprintf(stderr, "after xrm initialize\n");
 	resm = XResourceManagerString(dpy);
-	fprintf(stderr, "after xrm resmanstr\n");
 	if (!resm)
 		return;
 
 	if ((db = XrmGetStringDatabase(resm)) == NULL)
-		fprintf(stderr, "dang shits null\n");
+		return;
 
 	for (p = resources; p < resources + LENGTH(resources); p++)
 		resource_load(db, p->name, p->type, p->dst);
